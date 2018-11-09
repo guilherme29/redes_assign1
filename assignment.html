@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <title>Trabalho Prático RC 2018/19</title>
+   <style type="text/css">
+
+h1, h2 {
+   text-align: center;
+}
+
+ins {
+   color: red;
+}
+
+table, tr, th, td {
+   border: 1px solid black;
+   border-collapse: collapse;
+}
+
+code, pre {
+   background-color: #F0F0F0;
+   color: darkred;
+   border: 1px solid grey;
+   padding: 2px;
+   border-radius: 2px;
+}
+
+pre {
+   display: inline-block;
+}
+
+   </style>
+</head>
+<body>
+   <h1>Redes de Comunicação 2018/19</h1>
+   <h2>Trabalho Prático</h2>
+
+<h3>Introdução</h3>
+
+<p>
+O trabalho consiste no desenvolvimento em Java de um servidor de <em>chat</em>
+e de um cliente simples para comunicar com ele.  O servidor deve basear-se no
+modelo <em>multiplex</em>, aconselhando-se usar como ponto de partida o
+programa desenvolvido na
+<a href="https://moodle.up.pt/mod/page/view.php?id=12957">ficha de exercícios
+nº 5</a> das aulas práticas.
+Quanto ao cliente, deve partir <a href="ChatClient.java"
+download="ChatClient.java">deste esqueleto</a>,
+que implementa uma interface gráfica simples, e completá-lo com a implementação
+do lado cliente do protocolo.
+O cliente deve usar duas <em>threads</em>,
+de modo a poder receber mensagens do servidor enquanto espera que o utilizador
+escreva a próxima mensagem ou comando (caso contrário bloquearia na leitura
+da <i>socket</i>, tornando a interface inoperacional).
+</p>
+
+
+<h3>Linha de comando</h3>
+<p>
+O servidor deve estar implementado <u>numa classe chamada
+<code>ChatServer</code></u> e <u>aceitar como argumento da linha de comando o
+número da porta TCP na qual ficará à escuta</u>, por exemplo:<br />
+<code>java ChatServer 8000</code>
+</p>
+
+<p>
+O cliente deve estar implementado <u>numa classe chamada
+<code>ChatClient</code></u> e <u>aceitar como argumentos da linha de comando o
+nome DNS do servidor ao qual se quer conectar e o número da porta TCP em que
+o servidor está à escuta</u>, por exemplo:<br />
+<code>java ChatClient localhost 8000</code>
+</p>
+
+
+<h3>Protocolo</h3>
+
+<p>
+O protocolo de comunicação é orientado à linha de texto, i.e., cada mensagem
+enviada pelo cliente ao servidor ou pelo servidor ao cliente deve terminar
+com uma mudança de linha, e a mensagem propriamente dita não pode conter
+mudanças de linha.  Note que o TCP não faz delineação de mensagens,
+pelo que é possível que uma operação de leitura da <i>socket</i> retorne
+apenas parte de uma mensagem ou várias mensagens (podendo a primeira e a
+última ser parciais).  Cabe ao servidor fazer <i>buffering</i> por cliente
+de mensagens parcialmente recebidas<a href="#fn1"><sup>1</sup></a>.
+</p>
+
+
+<p>
+As mensagens enviadas pelo cliente ao servidor podem ser comandos ou mensagens
+simples.  Os comandos são do formato <i>/comando</i>, podendo levar argumentos
+separados por espaços.  As mensagens simples apenas podem ser enviadas
+quando o utilizador está numa sala de <em>chat</em>; se começarem por um
+ou mais caracteres &lsquo;/&rsquo; é necessário fazer o seu escape, incluindo
+um carácter &lsquo;/&rsquo; adicional (o servidor deve interpretar este caso
+especial, enviando aos outros utilizadores da sala a mensagem sem esse
+carácter extra); ocorrências de &lsquo;/&rsquo; que não sejam no início da
+linha não precisam de escape.
+</p>
+
+<p>
+O servidor deve suportar os seguintes comandos:
+</p>
+<dl>
+  <dt><code>/nick <i>nome</i></code></dt>
+    <dd>Usado para escolher um nome ou para mudar de nome.  O nome escolhido
+        não pode estar já a ser usado por outro utilizador.</dd>
+  <dt><code>/join <i>sala</i></code></dt>
+    <dd>Usado para entrar numa sala de <em>chat</em> ou para mudar de
+        sala.  Se a sala ainda não existir, é criada.</dd>
+  <dt><code>/leave</code></dt>
+    <dd>Usado para o utilizador sair da sala de <em>chat</em> em que se
+        encontra.</dd>
+  <dt><code>/bye</code></dt>
+    <dd>Usado para sair do <em>chat</em>.</dd>
+</dl>
+
+<p>
+As mensagens enviadas pelo servidor ao cliente começam por uma palavra em
+maiúsculas, indicando o tipo de mensagem, podendo seguir-se um ou mais
+argumentos, separados por espaços.  O servidor pode enviar as seguintes
+mensagens:
+</p>
+<dl>
+  <dt><code>OK</code></dt>
+    <dd>Usado para indicar sucesso do comando enviado pelo cliente.</dd>
+  <dt><code>ERROR</code></dt>
+    <dd>Usado para indicar insucesso do comando enviado pelo cliente.</dd>
+  <dt><code>MESSAGE <i>nome mensagem</i></code></dt>
+    <dd>Usado para difundir aos utilizadores numa sala a
+        <code><i>mensagem</i></code> (simples) enviada pelo utilizador
+        <code><i>nome</i></code>, também nessa sala.</dd>
+  <dt><code>NEWNICK <i>nome_antigo nome_novo</i></code></dt>
+    <dd>Usado para indicar a todos os utilizadores duma sala que o utilizador
+        <code><i>nome_antigo</i></code>, que está nessa sala, mudou de
+        nome para <code><i>nome_novo</i></code>.</dd>
+  <dt><code>JOINED <i>nome</i></code></dt>
+    <dd>Usado para indicar aos utilizadores numa sala que entrou um novo
+        utilizador, com o nome <code><i>nome</i></code>, nessa sala.</dd>
+  <dt><code>LEFT <i>nome</i></code></dt>
+    <dd>Usado para indicar aos utilizadores numa sala que o utilizador com
+        o nome <code><i>nome</i></code>, que também se encontrava nessa sala,
+        saiu.</dd>
+  <dt><code>BYE</code></dt>
+    <dd>Usado para confirmar a um utilizador que invocou o comando
+        <code><i>/bye</i></code> a sua saída.</dd>
+</dl>
+
+<p>
+O servidor mantém, associada a cada cliente, informação de estado, podendo
+cada cliente estar num dos seguintes estados:
+</p>
+<dl>
+  <dt><code>init</code></dt>
+    <dd>Estado inicial de um utilizador que acabou de estabelecer a
+        conexão ao servidor e, portanto, ainda não tem um nome associado.</dd>
+  <dt><code>outside</code></dt>
+    <dd>O utilizador já tem um nome associado, mas não está em nenhuma sala
+        de <em>chat</em>.</dd>
+  <dt><code>inside</code></dt>
+    <dd>O utilizador está numa sala de <em>chat</em>, podendo enviar
+        mensagens simples (para essa sala) e devendo receber todas as
+        mensagens que os outros utilizadores nessa sala enviem.</dd>
+</dl>
+
+<p>
+O seguinte quadro ilustra as transições de estado possíveis para um
+utilizador, identificando os eventos que as despoletam e as acções a
+elas associadas.
+</p>
+<table style="border: 1px solid black;">
+   <legend><b>Quadro 1:</b> Estados e transições</legend>
+   <thead>
+      <tr>
+         <th style="border: 1px solid black;">Estado actual</th>
+         <th style="border: 1px solid black;">Evento</th>
+         <th style="border: 1px solid black;">Acção</th>
+         <th style="border: 1px solid black;">Próximo estado</th>
+         <th style="border: 1px solid black;">Notas</th>
+      </tr>
+   </thead>
+   <tbody>
+      <tr>
+         <td style="border: 1px solid black;"><code>init</code></td>
+         <td style="border: 1px solid black;"><code>/nick <i>nome</i> &amp;&amp; !disponível(<i>nome</i>)</code></td>
+         <td style="border: 1px solid black;"><code>ERROR</code></td>
+         <td style="border: 1px solid black;"><code>init</code></td>
+         <td style="border: 1px solid black;"></td>
+      </tr>
+      <tr>
+         <td style="border: 1px solid black;"><code>init</code></td>
+         <td style="border: 1px solid black;"><code>/nick <i>nome</i> &amp;&amp; disponível(<i>nome</i>)</code></td>
+         <td style="border: 1px solid black;"><code>OK</code></td>
+         <td style="border: 1px solid black;"><code>outside</code></td>
+         <td style="border: 1px solid black;"><code><i>nome</i></code> fica indisponível para outros utilizadores</td>
+      </tr>
+      <tr>
+         <td style="border: 1px solid black;"><code>outside</code></td>
+         <td style="border: 1px solid black;"><code>/join <i>sala</i></code></td>
+         <td style="border: 1px solid black;"><code>OK</code> para o utilizador<br /><code>JOINED <i>nome</i></code> para os outros utilizadores na sala</td>
+         <td style="border: 1px solid black;"><code>inside</code></td>
+         <td style="border: 1px solid black;">entrou na sala <code><i>sala</i></code>; começa a receber mensagens dessa sala</td>
+      </tr>
+      <tr>
+         <td style="border: 1px solid black;"><code>outside</code></td>
+         <td style="border: 1px solid black;"><code>/nick <i>nome</i> &amp;&amp; !disponível(<i>nome</i>)</code></td>
+         <td style="border: 1px solid black;"><code>ERROR</code></td>
+         <td style="border: 1px solid black;"><code>outside</code></td>
+         <td style="border: 1px solid black;">mantém o nome antigo</td>
+      </tr>
+      <tr>
+         <td style="border: 1px solid black;"><code>outside</code></td>
+         <td style="border: 1px solid black;"><code>/nick <i>nome</i> &amp;&amp; disponível(<i>nome</i>)</code></td>
+         <td style="border: 1px solid black;"><code>OK</code></td>
+         <td style="border: 1px solid black;"><code>outside</code></td>
+         <td style="border: 1px solid black;"></td>
+      </tr>
+      <tr>
+         <td style="border: 1px solid black;"><code>inside</code></td>
+         <td style="border: 1px solid black;"><code><i>mensagem</i></code></td>
+         <td style="border: 1px solid black;"><code>MESSAGE <i>nome mensagem</i></code> para todos os utilizadores na sala</td>
+         <td style="border: 1px solid black;"><code>inside</code></td>
+         <td style="border: 1px solid black;">necessário escape de / inicial, i.e., / passa a //, // passa a ///, etc.</td>
+      </tr>
+      <tr>
+         <td style="border: 1px solid black;"><code>inside</code></td>
+         <td style="border: 1px solid black;"><code>/nick <i>nome</i> &amp;&amp; !disponível(<i>nome</i>)</code></td>
+         <td style="border: 1px solid black;"><code>ERROR</code></td>
+         <td style="border: 1px solid black;"><code>inside</code></td>
+         <td style="border: 1px solid black;">mantém o nome antigo</td>
+      </tr>
+      <tr>
+         <td style="border: 1px solid black;"><code>inside</code></td>
+         <td style="border: 1px solid black;"><code>/nick <i>nome</i> &amp;&amp; disponível(<i>nome</i>)</code></td>
+         <td style="border: 1px solid black;"><code>OK</code> para o utilizador<br /><code>NEWNICK <i>nome_antigo nome</i></code> para os outros utilizadores na sala</td>
+         <td style="border: 1px solid black;"><code>inside</code></td>
+         <td style="border: 1px solid black;"></td>
+      </tr>
+      <tr>
+         <td style="border: 1px solid black;"><code>inside</code></td>
+         <td style="border: 1px solid black;"><code>/join <i>sala</i></code></td>
+         <td style="border: 1px solid black;"><code>OK</code> para o utilizador<br /><code>LEFT <i>nome</i></code> para os outros utilizadores na sala antiga<br /><code>JOINED <i>nome</i></code> para os outros utilizadores na sala nova</td>
+         <td style="border: 1px solid black;"><code>inside</code></td>
+         <td style="border: 1px solid black;">entrou na sala <code><i>sala</i></code>; começa a receber mensagens dessa sala; deixa de receber mensagens da sala antiga</td>
+      </tr>
+      <tr>
+         <td style="border: 1px solid black;"><code>inside</code></td>
+         <td style="border: 1px solid black;"><code><i>/leave</i></code></td>
+         <td style="border: 1px solid black;"><code>OK</code> para o utilizador<br /><code>LEFT <i>nome</i></code> para os outros utilizadores na sala</td>
+         <td style="border: 1px solid black;"><code>outside</code></td>
+         <td style="border: 1px solid black;">deixa de receber mensagens</td>
+      </tr>
+      <tr>
+         <td style="border: 1px solid black;"><code>inside</code></td>
+         <td style="border: 1px solid black;"><code><i>/bye</i></code></td>
+         <td style="border: 1px solid black;"><code>BYE</code> para o utilizador<br /><code>LEFT <i>nome</i></code> para os outros utilizadores na sala</td>
+         <td style="border: 1px solid black;">&mdash;</td>
+         <td style="border: 1px solid black;">servidor fecha a conexão ao cliente</td>
+      </tr>
+      <tr>
+         <td style="border: 1px solid black;"><code>inside</code></td>
+         <td style="border: 1px solid black;">utilizador fechou a conexão</td>
+         <td style="border: 1px solid black;"><code>LEFT <i>nome</i></code> para os outros utilizadores na sala</td>
+         <td style="border: 1px solid black;">&mdash;</td>
+         <td style="border: 1px solid black;">servidor fecha a conexão ao cliente</td>
+      </tr>
+      <tr>
+         <td style="border: 1px solid black;">qualquer excepto <code>inside</code></td>
+         <td style="border: 1px solid black;"><code><i>/bye</i></code></td>
+         <td style="border: 1px solid black;"><code>BYE</code> para o utilizador</td>
+         <td style="border: 1px solid black;">&mdash;</td>
+         <td style="border: 1px solid black;">servidor fecha a conexão ao cliente</td>
+      </tr>
+      <tr>
+         <td style="border: 1px solid black;">qualquer excepto <code>inside</code></td>
+         <td style="border: 1px solid black;">utilizador fechou a conexão</td>
+         <td style="border: 1px solid black;">&mdash;</td>
+         <td style="border: 1px solid black;">&mdash;</td>
+         <td style="border: 1px solid black;">servidor fecha a conexão ao cliente</td>
+      </tr>
+      <tr>
+         <td style="border: 1px solid black;">qualquer excepto <code>inside</code></td>
+         <td style="border: 1px solid black;"><code><i>mensagem</i></code></td>
+         <td style="border: 1px solid black;"><code>ERROR</code></td>
+         <td style="border: 1px solid black;">mantém o estado</td>
+         <td style="border: 1px solid black;"></td>
+      </tr>
+      <tr>
+         <td style="border: 1px solid black;">qualquer</td>
+         <td style="border: 1px solid black;">comando não suportado nesse estado</td>
+         <td style="border: 1px solid black;"><code>ERROR</code></td>
+         <td style="border: 1px solid black;">mantém o estado</td>
+         <td style="border: 1px solid black;"></td>
+      </tr>
+   </tbody>
+</table>
+
+<p>
+De seguida, ilustra-se um diálogo entre o cliente e o servidor, onde
+<b>C&rarr;S</b> indica uma mensagem enviada do cliente para o servidor,
+<b>S&rarr;C</b> indica uma mensagem enviada do servidor para o cliente e
+<b>S&rarr;O</b> indica uma mensagem enviada do servidor para os outros
+clientes que estão na mesma sala.
+</p>
+
+<p>
+(cliente estabelece conexão para o servidor)<br />
+<b>C&rarr;S</b>: <code>/nick maria</code><br />
+<b>S&rarr;C</b>: <code>ERROR</code><br />
+<b>C&rarr;S</b>: <code>/nick miquinhas</code><br />
+<b>S&rarr;C</b>: <code>OK</code><br />
+<b>C&rarr;S</b>: <code>/join moda</code><br />
+<b>S&rarr;C</b>: <code>OK</code><br />
+<b>S&rarr;O</b>: <code>JOINED miquinhas</code><br />
+<b>C&rarr;S</b>: <code>Olá a todos!</code><br />
+<b>S&rarr;C</b>: <code>MESSAGE miquinhas Olá a todos!</code><br />
+<b>S&rarr;O</b>: <code>MESSAGE miquinhas Olá a todos!</code><br />
+<b>S&rarr;C</b>: <code>MESSAGE francisca Olá, miquinhas!</code><br />
+<b>S&rarr;C</b>: <code>MESSAGE berto Olá, miquinhas!</code><br />
+<b>C&rarr;S</b>: <code>/nick micas</code><br />
+<b>S&rarr;C</b>: <code>OK</code><br />
+<b>S&rarr;O</b>: <code>NEWNICK miquinhas micas</code><br />
+<b>C&rarr;S</b>: <code>Tchau!</code><br />
+<b>S&rarr;C</b>: <code>MESSAGE micas Tchau!</code><br />
+<b>S&rarr;O</b>: <code>MESSAGE micas Tchau!</code><br />
+<b>C&rarr;S</b>: <code>/join C++</code><br />
+<b>S&rarr;C</b>: <code>OK</code><br />
+<b>S&rarr;O</b>: <code>LEFT micas</code> (na sala <code>moda</code>)<br />
+<b>S&rarr;O</b>: <code>JOINED micas</code> (na sala <code>C++</code>)<br />
+<b>C&rarr;S</b>: <code>/// marca o início de um comentário em C++</code><br />
+<b>S&rarr;C</b>: <code>MESSAGE micas // marca o início de um comentário em C++</code><br />
+<b>S&rarr;O</b>: <code>MESSAGE micas // marca o início de um comentário em C++</code><br />
+<b>C&rarr;S</b>: <code>/bye</code><br />
+<b>S&rarr;C</b>: <code>BYE</code> (servidor fecha a conexão à micas)<br />
+<b>S&rarr;O</b>: <code>LEFT micas</code><br />
+</p>
+
+<p>
+<strong>IMPORTANTE:</strong> Dado que serão feitos testes automáticos, é muito
+importante que o serviço implementado cumpra escrupulosamente a especificação.
+As mensagens deverão ter exactamente o formato indicado, e o servidor não deve
+enviar nada mais para além delas (nem sequer uma mensagem inicial de
+boas-vindas).
+</p>
+
+<h3>Valorização</h3>
+
+<p>
+A implementação inteiramente correcta do servidor acima descrito será
+valorizada com 50% da cotação do trabalho.<br/>
+A implementação inteiramente correcta do cliente acima descrito será
+valorizada com 35% da cotação do trabalho.<br/>
+Se, adicionalmente, implementar no servidor o comando
+<code>/priv <i>nome mensagem</i></code> (ver abaixo), obterá mais 10%.<br />
+Se processar as mensagens recebidas pelo cliente de modo a que na área de
+<em>chat</em> não apareça directamente o que foi recebido do servidor, mas
+sim o seu conteúdo num formato mais amigável (ver exemplo abaixo), obterá
+mais 5%.
+</p>
+
+<p>
+O comando <code>/priv <i>nome mensagem</i></code> serve para enviar ao
+utilizador <code><i>nome</i></code> (e apenas a ele) a
+<code><i>mensagem</i></code>.  Se o utilizador <code><i>nome</i></code>
+não existir, o servidor deverá devolver <code>ERROR</code>, caso contrário
+deverá devolver <code>OK</code> e enviar ao utilizador
+<code><i>nome</i></code> a mensagem <code>PRIVATE <i>emissor
+mensagem</i></code> (onde <code><i>emissor</i></code> é o nickname de quem
+enviou a mensagem).
+</p>
+
+<p>
+Por formato mais amigável entende-se, por exemplo, que quando é recebida
+do servidor a mensagem <code>MESSAGE <i>nome mensagem</i></code> seja
+mostrado na área de chat <code><i>nome</i>: <i>mensagem</i></code>, que
+quando é recebida do servidor a mensagem
+<code>NEWNICK <i>nome_antigo nome_novo</i></code> seja mostrado na área
+de chat <code><i>nome_antigo</i> mudou de nome para <i>nome_novo</i></code>, 
+etc.
+</p>
+
+
+<h3>Entrega</h3>
+
+<p>O trabalho será desenvolvido em <u>grupos de dois elementos</u>.  Cada grupo
+deverá entregar um <u>arquivo .zip</u> contendo <u>exactamente</u>:
+<ul>
+  <li>Um ficheiro <code>ChatServer.java</code> com o código-fonte do
+      servidor.</li>
+  <li>Um ficheiro <code>ChatClient.java</code> com o código-fonte do
+      cliente.</li>
+  <li>Um ficheiro <code>grupo.txt</code> com a identificação dos dois
+      elementos do grupo no formato aqui exemplificado:<br />
+      <pre>201012345 Ana Beatriz Carvalho Duarte
+201054321 Eduardo Fernando Gonçalves Henriques</pre>
+      </li>
+</ul>
+Se o cliente e/ou o servidor estiverem organizados em diferentes classes,
+deverão incluir ficheiros .java com o respectivo código-fonte (contudo, as
+classes principais do servidor e do cliente deverão ser, respectivamente,
+<code>ChatServer</code> e <code>ChatClient</code>).
+A submissão deverá ser feita no Moodle por apenas um dos elementos do grupo.
+O incumprimento das regras de submissão será penalizado.
+</p>
+
+<h3>Código de honra</h3>
+
+<p>
+A submissão de um trabalho implica a garantia, sob compromisso de honra, de
+que o trabalho submetido resultou <u>exclusivamente</u> do esforço dos
+elementos do respectivo grupo, <u>não tendo havido qualquer partilha de
+código com pessoas externas ao grupo</u>.
+</p>
+
+<h3>Notas</h3>
+
+<ol>
+   <li id="fn1">É particularmente importante o servidor lidar correctamente
+      com a delineação das mensagens.  Para testar este aspecto pode usar
+      como cliente o <code>ncat</code> (ou <code>netcat</code>, ou
+      <code>nc</code>).
+      <ul>
+         <li>Para testar o envio de uma única mensagem partida em vários
+             pacotes faça <code>ncat localhost 8000</code> e escreva<br />
+             <code>/ni&lt;CTRL-D&gt;ck bom&lt;CTRL-D&gt;rapaz&lt;ENTER&gt;</code> 
+             <br />
+             O servidor não deve interpretar o comando ao fazer
+             <code>&lt;CTRL-D&gt;</code>, apenas <i>bufferizar</i> os pedaços
+             da mensagem (&ldquo;<code>/ni</code>&rdquo;,
+             &ldquo;<code>ck&nbsp;bom</code>&rdquo; e
+             &ldquo;<code>rapaz</code>&rdquo;).  O comando completo
+             (&ldquo;<code>/nick bomrapaz</code>&rdquo;) só deve ser
+             processado quando fizer <code>&lt;ENTER&gt;</code>.
+         </li>
+         <li>Para testar o envio de múltiplas mensagens num único pacote
+             pode criar um ficheiro com as linhas<br />
+             <pre>/nick bomrapaz
+/join sala
+Bom dia!</pre></br>
+             e fazer <code>ncat localhost 8000 &lt; ficheiro</code>.
+             O servidor deve interpretar o que recebe como dois comandos e
+             uma mensagem de texto.
+         </li>
+      </ul>
+   </li>
+</ol>
+   
+</body>
+</html>
