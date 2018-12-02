@@ -158,11 +158,11 @@ public class Server
     System.out.println("RECEIVED MESSAGE: " + message);
 
     if(message.startsWith("/nick")){
-      String nick = message.substring(5);//5 = "/nick".length()
+      String nick = message.substring(6);//5 = "/nick ".length()
       nick(sc, nick);
     }
     else if(message.startsWith("/join")){
-      String room = message.substring(5);//5 = "/join".length()
+      String room = message.substring(6);//5 = "/join ".length()
       join(sc, room);
     }
     else {
@@ -188,11 +188,17 @@ public class Server
 
   static private void join(SocketChannel sc, String room) throws IOException{
 
+    State userState = states.get(sc);
+    if(userState == State.init){
+      send(sc, "ERROR - no nickname defined");
+      return;
+    }
+
     if(!rooms.containsKey(room)){ //if the room doesn't exist yet
       Set<SocketChannel> set = new HashSet<SocketChannel>();
       rooms.put(room, set);
     }
-    
+
     //removing user from current room
     Iterator<Set<SocketChannel>> it = rooms.values().iterator();
     while(it.hasNext()){
@@ -211,7 +217,7 @@ public class Server
     send(sc, "OK - you're now in " + room);
     states.put(sc, State.inside);
     sendSetOthers(usersInRoom, sc, "someone joined");
-    //TODO clean empty rooms
+    ////////////////////////////////////////////////////////////////////////////TODO clean empty rooms
 
   }
 
