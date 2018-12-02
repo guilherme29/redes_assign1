@@ -87,8 +87,8 @@ public class ChatClient {
     // Metodo principal do objecto
     public void run() throws IOException {
         // PREENCHER AQUI
-        chatArea.append("\\nick to define a nickname");
-        // TODO 
+        chatArea.append("/nick to define a nickname");
+        // TODO
 
         int bytesRead = 0;
         while(bytesRead >= 0) {
