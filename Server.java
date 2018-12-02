@@ -20,11 +20,12 @@ public class Server
     init, outside, inside
   }
   static private Selector selector;
-  static private HashMap<SocketChannel, String> users =
-    new HashMap<SocketChannel, String>();
-  static private HashMap<SocketChannel, State> states =
-    new HashMap<SocketChannel, State>();
-
+  //users list
+  static private HashMap<SocketChannel, String> users = new HashMap<>();
+  //users states
+  static private HashMap<SocketChannel, State> states = new HashMap<>();
+  //rooms and users inside them
+  static private HashMap<String,Set<SocketChannel>> rooms = new HashMap<>();
 
   static public void main( String args[] ) throws Exception {
     // Parse port from command line
@@ -155,10 +156,17 @@ public class Server
 
     String message = decoder.decode(buffer).toString();
     System.out.println("RECEIVED MESSAGE: " + message);
+
     if(message.startsWith("/nick")){
       String nick = message.substring(5);//5 = "/nick".length()
       nick(sc, nick);
-      System.out.println("New nick added: " + nick);
+    }
+    else if(message.startsWith("/join")){
+      String room = message.substring(5);//5 = "/join".length()
+      join(sc, room);
+    }
+    else {
+      message(sc, message);
     }
 
     return true;
@@ -174,11 +182,57 @@ public class Server
       users.put(sc, nick);
       send(sc, "OK - your nickname is now: " + nick);
       states.put(sc, State.inside);
+      System.out.println("New nick added: " + nick);
     }
+  }
+
+  static private void join(SocketChannel sc, String room) throws IOException{
+
+    if(!rooms.containsKey(room)){ //if the room doesn't exist yet
+      Set<SocketChannel> set = new HashSet<SocketChannel>();
+      rooms.put(room, set);
+    }
+    Set<SocketChannel> aux = rooms.get(room);
+
+    //removing user from current room
+    /*
+    Iterator<Set<SocketChannel>> it = rooms.values().iterator();
+    while(it.hasNext()){
+      Set<SocketChannel> set = it.next();
+      if(set.contains(sc)){
+        set.remove(sc);
+        String nick = users.get(sc);
+        sendSet(set, "LEFT " + nick);
+        break; //an user should be present in one place and one place only at a time
+      }
+    }
+    */
+
+    //adding user to other room
+
+    Set<SocketChannel> usersInRoom = rooms.get(room);
+    usersInRoom.add(sc);
+    send(sc, "OK - you're now in " + room);
+    states.put(sc, State.inside);
+    System.out.println("aux -->" + aux.size());
+    System.out.println("use -->" + usersInRoom.size());
+    sendSet(usersInRoom, "someone joined");
+    //TODO clean empty rooms
+
+  }
+
+  static private void message(SocketChannel sc, String message) throws IOException {
+
   }
 
   static private void send(SocketChannel sc, String message) throws IOException {
     sc.write(encoder.encode(CharBuffer.wrap(message)));
   }
 
+  static private void sendSet(Set<SocketChannel> sclist, String message) throws IOException {
+    System.out.println("sent");
+    for(SocketChannel sc : sclist){
+      send(sc, message);
+    }
+  }
 }
