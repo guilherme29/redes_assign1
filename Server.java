@@ -15,9 +15,15 @@ public class Server
   static private final CharsetDecoder decoder = charset.newDecoder();
   static private final CharsetEncoder encoder = charset.newEncoder();
 
+
+  enum State {
+    init, outside, inside
+  }
   static private Selector selector;
   static private HashMap<SocketChannel, String> users =
     new HashMap<SocketChannel, String>();
+  static private HashMap<SocketChannel, State> states =
+    new HashMap<SocketChannel, State>();
 
 
   static public void main( String args[] ) throws Exception {
@@ -78,6 +84,11 @@ public class Server
 
             // Register it with the selector, for reading
             sc.register( selector, SelectionKey.OP_READ );
+
+
+            /* giving the socket a state */
+            states.put(sc, State.init);
+            //System.out.println(states.get(sc));
 
           }
           else if ((key.readyOps() & SelectionKey.OP_READ) == SelectionKey.OP_READ) {
