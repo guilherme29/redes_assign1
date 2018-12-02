@@ -26,6 +26,8 @@ public class Server
   static private HashMap<SocketChannel, State> states = new HashMap<>();
   //rooms and users inside them
   static private HashMap<String,Set<SocketChannel>> rooms = new HashMap<>();
+  //user and the room he is currently in (using this to simplify)
+  static private HashMap<SocketChannel, String> userRoom = new HashMap<>();
 
   static public void main( String args[] ) throws Exception {
     // Parse port from command line
@@ -215,8 +217,12 @@ public class Server
     Set<SocketChannel> usersInRoom = rooms.get(room);
     usersInRoom.add(sc);
     send(sc, "OK - you're now in " + room);
-    states.put(sc, State.inside);
-    sendSetOthers(usersInRoom, sc, "someone joined");
+    userRoom.put(sc, room); //adding the user to the room
+    states.put(sc, State.inside); //changing the state
+    rooms.put(room, usersInRoom); //adding this room to the list of rooms
+
+    String welcomeMessage = "JOINED " + users.get(sc);
+    sendSetOthers(usersInRoom, sc, welcomeMessage);
     ////////////////////////////////////////////////////////////////////////////TODO clean empty rooms
 
   }
