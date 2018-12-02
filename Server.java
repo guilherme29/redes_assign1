@@ -154,11 +154,11 @@ public class Server
     }
 
     String message = decoder.decode(buffer).toString();
-    System.out.println("RECEIVED MESSAGE:" + message);
+    System.out.println("RECEIVED MESSAGE: " + message);
     if(message.startsWith("/nick")){
       String nick = message.substring(5);//5 = "/nick".length()
       nick(sc, nick);
-      System.out.println("New nick added:" + nick);
+      System.out.println("New nick added: " + nick);
     }
 
     return true;
@@ -167,12 +167,13 @@ public class Server
 
   static private void nick(SocketChannel sc, String nick) throws IOException{
     if(users.containsValue(nick)){
-      send(sc, "nickname already in use");
+      send(sc, "ERROR - nickname already in use");
     }
     else{
-      String oldnick = users.get(sc);
+      //String oldnick = users.get(sc);
       users.put(sc, nick);
-      send(sc, "your nickname was changed to: " + nick);
+      send(sc, "OK - your nickname is now: " + nick);
+      states.put(sc, State.inside);
     }
   }
 
