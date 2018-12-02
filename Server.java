@@ -13,8 +13,12 @@ public class Server
   // Decoder for incoming text -- assume UTF-8
   static private final Charset charset = Charset.forName("UTF8");
   static private final CharsetDecoder decoder = charset.newDecoder();
+  static private final CharsetEncoder encoder = charset.newEncoder();
 
   static private Selector selector;
+  static private HashMap<SocketChannel, String> users =
+    new HashMap<SocketChannel, String>();
+
 
   static public void main( String args[] ) throws Exception {
     // Parse port from command line
@@ -39,7 +43,7 @@ public class Server
       // Register the ServerSocketChannel, so we can listen for incoming
       // connections
       ssc.register( selector, SelectionKey.OP_ACCEPT );
-      System.out.println( "Listening on port "+port );
+      System.out.println( "Listening on port " + port );
 
       while (true) {
         // See if we've had any activity -- either an incoming connection,
@@ -60,8 +64,7 @@ public class Server
           SelectionKey key = it.next();
 
           // What kind of activity is it?
-          if ((key.readyOps() & SelectionKey.OP_ACCEPT) ==
-            SelectionKey.OP_ACCEPT) {
+          if ((key.readyOps() & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT) {
 
             // It's an incoming connection.  Register this socket with
             // the Selector so we can listen for input on it
@@ -76,15 +79,15 @@ public class Server
             // Register it with the selector, for reading
             sc.register( selector, SelectionKey.OP_READ );
 
-          } else if ((key.readyOps() & SelectionKey.OP_READ) ==
-            SelectionKey.OP_READ) {
+          }
+          else if ((key.readyOps() & SelectionKey.OP_READ) == SelectionKey.OP_READ) {
 
             SocketChannel sc = null;
 
             try {
 
               // It's incoming data on a connection -- process it
-              sc = (SocketChannel)key.channel();
+              sc = (SocketChannel) key.channel();
               boolean ok = processInput( sc );
 
               // If the connection is dead, remove it from the selector
@@ -109,9 +112,11 @@ public class Server
 
               try {
                 sc.close();
-              } catch( IOException ie2 ) { System.out.println( ie2 ); }
+              } catch( IOException ie2 ) {
+                System.out.println( ie2 );
+              }
 
-              System.out.println( "Closed "+sc );
+              System.out.println( "Closed " + sc );
             }
           }
         }
@@ -137,27 +142,31 @@ public class Server
       return false;
     }
 
-    Set<SelectionKey> keys = selector.keys();
-    Iterator<SelectionKey> it = keys.iterator();
-
-    while(it.hasNext()) {
-      SelectionKey key = it.next();
-      if(key.isAcceptable()) continue;
-
-      sc = (SocketChannel) key.channel();
-      sc.write(buffer);
-      buffer.rewind();
+    String message = decoder.decode(buffer).toString();
+    System.out.println("RECEIVED MESSAGE:" + message);
+    if(message.startsWith("/nick")){
+      String nick = message.substring(5);//5 = "/nick".length()
+      nick(sc, nick);
+      System.out.println("New nick added:" + nick);
     }
 
-    /*
-    // Decode and print the message to stdout
-    String message = decoder.decode(buffer).toString();
-    System.out.print( message );
-
-    // Writing back into the socket
-    buffer.rewind();
-    sc.write(buffer);
-    */
     return true;
   }
+
+
+  static private void nick(SocketChannel sc, String nick) throws IOException{
+    if(users.containsValue(nick)){
+      send(sc, "nickname already in use");
+    }
+    else{
+      String oldnick = users.get(sc);
+      users.put(sc, nick);
+      send(sc, "your nickname was changed to: " + nick);
+    }
+  }
+
+  static private void send(SocketChannel sc, String message) throws IOException {
+    sc.write(encoder.encode(CharBuffer.wrap(message)));
+  }
+
 }
