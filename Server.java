@@ -167,6 +167,9 @@ public class Server
       String room = message.substring(6);//5 = "/join ".length()
       join(sc, room);
     }
+    else if(message.startsWith("/leave")){
+      leave(sc);
+    }
     else {
       message(sc, message);
     }
@@ -183,7 +186,7 @@ public class Server
       //String oldnick = users.get(sc);
       users.put(sc, nick);
       send(sc, "OK - your nickname is now: " + nick);
-      states.put(sc, State.inside);
+      states.put(sc, State.outside);
       System.out.println("New nick added: " + nick);
     }
   }
@@ -202,16 +205,7 @@ public class Server
     }
 
     //removing user from current room
-    Iterator<Set<SocketChannel>> it = rooms.values().iterator();
-    while(it.hasNext()){
-      Set<SocketChannel> set = it.next();
-      if(set.contains(sc)){
-        set.remove(sc);
-        String nick = users.get(sc);
-        sendSet(set, "LEFT " + nick);
-        break; //an user should be present in one place and one place only at a time
-      }
-    }
+    leave(sc);
 
     //adding user to other room
     Set<SocketChannel> usersInRoom = rooms.get(room);
@@ -225,6 +219,25 @@ public class Server
     sendSetOthers(usersInRoom, sc, welcomeMessage);
     ////////////////////////////////////////////////////////////////////////////TODO clean empty rooms
 
+  }
+
+  static private void leave(SocketChannel sc) throws IOException {
+    if(states.get(sc) == State.outside){ //in case it's not in a room
+      return;
+    }
+
+    String room = userRoom.get(sc);
+    Set<SocketChannel> set = rooms.get(room);
+    set.remove(sc);
+
+    if(set.size() == 0){ //if the room becomes empty, deletes it
+      rooms.remove(room);
+    }
+    else {
+      String goodbyeMessage = "LEFT " + users.get(sc);
+      sendSet(set, goodbyeMessage);
+    }
+    states.put(sc, State.outside);
   }
 
   static private void message(SocketChannel sc, String message) throws IOException {
