@@ -94,7 +94,7 @@ public class ChatClient {
         while(bytesRead >= 0) {
           ByteBuffer buf = ByteBuffer.allocate(16384); //2^14
           bytesRead = socketChannel.read(buf);
-          writeText(buf.toString());  ///////////////////////////////////////
+          writeText(new String(buf.array()));
         }
     }
 
