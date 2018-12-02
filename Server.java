@@ -192,10 +192,8 @@ public class Server
       Set<SocketChannel> set = new HashSet<SocketChannel>();
       rooms.put(room, set);
     }
-    Set<SocketChannel> aux = rooms.get(room);
-
+    
     //removing user from current room
-    /*
     Iterator<Set<SocketChannel>> it = rooms.values().iterator();
     while(it.hasNext()){
       Set<SocketChannel> set = it.next();
@@ -206,17 +204,13 @@ public class Server
         break; //an user should be present in one place and one place only at a time
       }
     }
-    */
 
     //adding user to other room
-
     Set<SocketChannel> usersInRoom = rooms.get(room);
     usersInRoom.add(sc);
     send(sc, "OK - you're now in " + room);
     states.put(sc, State.inside);
-    System.out.println("aux -->" + aux.size());
-    System.out.println("use -->" + usersInRoom.size());
-    sendSet(usersInRoom, "someone joined");
+    sendSetOthers(usersInRoom, sc, "someone joined");
     //TODO clean empty rooms
 
   }
@@ -230,9 +224,17 @@ public class Server
   }
 
   static private void sendSet(Set<SocketChannel> sclist, String message) throws IOException {
-    System.out.println("sent");
     for(SocketChannel sc : sclist){
       send(sc, message);
     }
   }
+
+  static private void sendSetOthers(Set<SocketChannel> sclist, SocketChannel exception, String message) throws IOException {
+    for(SocketChannel sc : sclist){
+      if(sc != exception){
+        send(sc, message);
+      }
+    }
+  }
+
 }
