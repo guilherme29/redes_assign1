@@ -217,8 +217,6 @@ public class Server
 
     String welcomeMessage = "JOINED " + users.get(sc);
     sendSetOthers(usersInRoom, sc, welcomeMessage);
-    ////////////////////////////////////////////////////////////////////////////TODO clean empty rooms
-
   }
 
   static private void leave(SocketChannel sc) throws IOException {
