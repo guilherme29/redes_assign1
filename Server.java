@@ -198,7 +198,6 @@ public class Server
       send(sc, "ERROR - no nickname defined");
       return;
     }
-
     if(!rooms.containsKey(room)){ //if the room doesn't exist yet
       Set<SocketChannel> set = new HashSet<SocketChannel>();
       rooms.put(room, set);
@@ -227,6 +226,7 @@ public class Server
     String room = userRoom.get(sc);
     Set<SocketChannel> set = rooms.get(room);
     set.remove(sc);
+    userRoom.remove(sc);
 
     if(set.size() == 0){ //if the room becomes empty, deletes it
       rooms.remove(room);
@@ -239,7 +239,14 @@ public class Server
   }
 
   static private void message(SocketChannel sc, String message) throws IOException {
-
+    if(states.get(sc) != State.inside) { //if user isn't inside a room
+      send(sc, "ERROR - you aren't inside a room");
+      return;
+    }
+    String room = userRoom.get(sc);
+    Set<SocketChannel> roomSet = rooms.get(room);
+    String alfa = "MESSAGE " + users.get(sc) + " " + message;
+    sendSet(roomSet, alfa);
   }
 
   static private void send(SocketChannel sc, String message) throws IOException {
