@@ -183,11 +183,21 @@ public class Server
       send(sc, "ERROR - nickname already in use");
     }
     else{
-      //String oldnick = users.get(sc);
+      //informing the rest of the room about the change
+      String oldnick = users.get(sc);
+      if(states.get(sc) == State.inside){ //if the user is in a room
+        String room = userRoom.get(sc);
+        Set<SocketChannel> roomSet = rooms.get(room);
+        String message = "NEWNICK " + oldnick + " " + nick;
+        sendSetOthers(roomSet, sc, message);
+      }
+
+      //changing the nick
       users.put(sc, nick);
       send(sc, "OK - your nickname is now: " + nick);
       states.put(sc, State.outside);
-      System.out.println("New nick added: " + nick);
+      //System.out.println("New nick added: " + nick);
+
     }
   }
 
