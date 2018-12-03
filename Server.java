@@ -255,6 +255,7 @@ public class Server
     if(states.get(sc) == State.inside){ //leaves the room
       leave(sc);
     }
+    send(sc, "BYE");
 
     users.remove(sc);
     states.remove(sc);
