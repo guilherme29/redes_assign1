@@ -170,6 +170,9 @@ public class Server
     else if(message.startsWith("/leave")){
       leave(sc);
     }
+    else if(message.startsWith("/bye")){
+      bye(sc);
+    }
     else {
       message(sc, message);
     }
@@ -246,6 +249,24 @@ public class Server
       sendSet(set, goodbyeMessage);
     }
     states.put(sc, State.outside);
+  }
+
+  static private void bye(SocketChannel sc) throws IOException {
+    if(states.get(sc) == State.inside){ //leaves the room
+      leave(sc);
+    }
+
+    users.remove(sc);
+    states.remove(sc);
+
+    try {
+      sc.close();
+    } catch(IOException e) {
+      System.err.println(e);
+    }
+
+    System.out.println( "Closed " + sc );
+
   }
 
   static private void message(SocketChannel sc, String message) throws IOException {
