@@ -29,6 +29,8 @@ public class Server
   //user and the room he is currently in (using this to simplify)
   static private HashMap<SocketChannel, String> userRoom = new HashMap<>();
 
+  static private HashMap<SocketChannel, String> userMessage = new HashMap<>();
+
   static public void main( String args[] ) throws Exception {
     // Parse port from command line
     int port = Integer.parseInt( args[0] );
@@ -155,9 +157,26 @@ public class Server
     if (buffer.limit()==0) {
       return false;
     }
+    /*
+    if(!userMessage.containsKey(sc)){
+      userMessage.put(sc,"");
+    }
+    */
 
     String message = decoder.decode(buffer).toString();
     System.out.println("RECEIVED MESSAGE: " + message);
+    /*
+    if(!message.endsWith("\n")){ //to avoid sending messages with Ctrl + D on netcat
+      String restOfMessage = userMessage.get(sc);
+      restOfMessage = restOfMessage + message;
+      return true;
+    }
+    else{
+      String restOfMessage = userMessage.get(sc);
+      message = restOfMessage + message;
+      //message.trim();
+    }
+    */
 
     if(message.startsWith("/nick")){
       String nick = message.substring(6);//5 = "/nick ".length()
@@ -172,6 +191,10 @@ public class Server
     }
     else if(message.startsWith("/bye")){
       bye(sc);
+    }
+    else if(message.startsWith("/priv")){
+      String[] splitted = message.split(" ");
+      priv(sc, splitted[1], splitted[2]);
     }
     else {
       message(sc, message);
@@ -268,6 +291,26 @@ public class Server
 
     System.out.println( "Closed " + sc );
 
+  }
+
+  static private void priv(SocketChannel sc, String user, String message) throws IOException{
+    SocketChannel destiny = null;
+    boolean flag = true;
+    Iterator it = users.entrySet().iterator();
+    while(it.hasNext()){
+      Map.Entry pair = (Map.Entry) it.next();
+      if(users.get(pair.getKey()).compareTo(user) == 0){
+        destiny = (SocketChannel) pair.getKey();
+        flag = false;
+        break;
+      }
+    }
+    if(flag){
+      send(sc, "ERROR - user not found");
+      return;
+    }
+    message = "PRIV " + users.get(sc) + " " + message;
+    send(destiny, message);
   }
 
   static private void message(SocketChannel sc, String message) throws IOException {
