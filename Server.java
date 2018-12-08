@@ -5,6 +5,47 @@ import java.nio.channels.*;
 import java.nio.charset.*;
 import java.util.*;
 
+
+enum State {
+  init, outside, inside
+}
+class User{
+  String username = "";
+  State state;
+  Room room;
+  String message = ""; //i need this to avoid responding to Ctrl + D on netcat
+
+  User(){
+    this.state = State.init;
+  }
+
+  String getUsername(){
+    return this.username;
+  }
+  State getState(){
+    return this.state;
+  }
+  Room getRoom(){
+    return this.room;
+  }
+
+  void setUsername(String username){
+    this.username = username;
+  }
+  void setState(State state){
+    this.state = state;
+  }
+  void setRoom(Room room){
+    this.room = room;
+  }
+
+}
+
+class Room{
+  String name = "";
+  HashSet<User> users = new HashSet<>();
+}
+
 public class Server
 {
   // A pre-allocated buffer for the received data
@@ -15,11 +56,11 @@ public class Server
   static private final CharsetDecoder decoder = charset.newDecoder();
   static private final CharsetEncoder encoder = charset.newEncoder();
 
+  static private HashSet<Room> rooms = new HashSet<>();
+  static private HashSet<SelectionKey> users = new HashSet<>();
 
-  enum State {
-    init, outside, inside
-  }
   static private Selector selector;
+  /*
   //users list
   static private HashMap<SocketChannel, String> users = new HashMap<>();
   //users states
@@ -30,6 +71,7 @@ public class Server
   static private HashMap<SocketChannel, String> userRoom = new HashMap<>();
 
   static private HashMap<SocketChannel, String> userMessage = new HashMap<>();
+  */
 
   static public void main( String args[] ) throws Exception {
     // Parse port from command line
@@ -91,10 +133,6 @@ public class Server
             sc.register( selector, SelectionKey.OP_READ );
 
 
-            /* giving the socket a state */
-            states.put(sc, State.init);
-            //System.out.println(states.get(sc));
-
           }
           else if ((key.readyOps() & SelectionKey.OP_READ) == SelectionKey.OP_READ) {
 
@@ -102,9 +140,13 @@ public class Server
 
             try {
 
+              // Registering a new user
+              key.attach(new User());
+              users.add(key);
+
               // It's incoming data on a connection -- process it
+              boolean ok = processInput( key );
               sc = (SocketChannel) key.channel();
-              boolean ok = processInput( sc );
 
               // If the connection is dead, remove it from the selector
               // and close it
@@ -147,7 +189,8 @@ public class Server
 
 
   // Just read the message from the socket and send it to stdout
-  static private boolean processInput( SocketChannel sc ) throws IOException {
+  static private boolean processInput(SelectionKey key) throws IOException {
+    SocketChannel sc = (SocketChannel) key.channel();
     // Read the message to the buffer
     buffer.clear();
     sc.read( buffer );
@@ -178,33 +221,81 @@ public class Server
     }
     */
 
-    if(message.startsWith("/nick")){
-      String nick = message.substring(6);//5 = "/nick ".length()
-      nick(sc, nick);
+    if(message.startsWith("/nick ")){
+      String nick = message.substring(6);//6 = "/nick ".length()
+      nick = nick.replace("\n", "");
+      nick(key, nick);
     }
-    else if(message.startsWith("/join")){
-      String room = message.substring(6);//5 = "/join ".length()
+    else if(message.startsWith("/join ")){
+      /*
+      String room = message.substring(6);//6 = "/join ".length()
       join(sc, room);
+      */
     }
     else if(message.startsWith("/leave")){
+      /*
       leave(sc);
+      */
     }
     else if(message.startsWith("/bye")){
+      /*
       bye(sc);
+      */
     }
     else if(message.startsWith("/priv")){
-      String[] splitted = message.split(" ");
-      priv(sc, splitted[1], splitted[2]);
+      /*
+      String aux = message.substring(6);
+      String user = "";
+      int i;
+      for(i=0; aux.charAt(i)!=' '; i++){
+        user = user + aux.charAt(i);
+      }
+      user = user + "\n";  ////////////TODO arranjar usernames (estao a acabar com \n e nao deviam)
+      message = message.substring(i + 1);
+      priv(sc, user, message);
+      System.out.println("->" + user);
+      System.out.println("->" + message);
+      System.out.println("->" + users.get(sc));
+      */
     }
     else {
+      /*
       message(sc, message);
+      */
     }
 
     return true;
   }
 
 
-  static private void nick(SocketChannel sc, String nick) throws IOException{
+  static private void nick(SelectionKey key, String nick) throws IOException{
+    User user = (User) key.attachment();
+
+    //checking for users with the same nickname
+    for(SelectionKey aux : users){
+      User auxUser = (User) aux.attachment();
+      if(auxUser.getUsername().compareTo(nick) == 0){
+        send(key, "ERROR - nickname already in use");
+        return;
+      }
+    }
+
+    //checking if the user is in a room
+    State state = user.getState();
+    if(state == State.init || state == State.outside){
+      user.setUsername(nick);
+      key.attach(user);                                 //  TODO check if this line is needed
+      send(key, "OK - your nickname is now: " + nick);
+    }
+    else {
+      String oldnick = user.getUsername();
+      String message = "NEWNICK " + oldnick + " " + nick;
+      Room room = user.getRoom();
+      //sendToOthers()                                      TODO
+      //send()                                              TODO
+    }
+
+    /*
     if(users.containsValue(nick)){
       send(sc, "ERROR - nickname already in use");
     }
@@ -225,10 +316,11 @@ public class Server
       //System.out.println("New nick added: " + nick);
 
     }
+    */
   }
 
   static private void join(SocketChannel sc, String room) throws IOException{
-
+    /*
     State userState = states.get(sc);
     if(userState == State.init){
       send(sc, "ERROR - no nickname defined");
@@ -252,9 +344,11 @@ public class Server
 
     String welcomeMessage = "JOINED " + users.get(sc);
     sendSetOthers(usersInRoom, sc, welcomeMessage);
+    */
   }
 
   static private void leave(SocketChannel sc) throws IOException {
+    /*
     if(states.get(sc) == State.outside){ //in case it's not in a room
       return;
     }
@@ -272,9 +366,11 @@ public class Server
       sendSet(set, goodbyeMessage);
     }
     states.put(sc, State.outside);
+    */
   }
 
   static private void bye(SocketChannel sc) throws IOException {
+    /*
     if(states.get(sc) == State.inside){ //leaves the room
       leave(sc);
     }
@@ -290,10 +386,11 @@ public class Server
     }
 
     System.out.println( "Closed " + sc );
-
+    */
   }
 
   static private void priv(SocketChannel sc, String user, String message) throws IOException{
+    /*
     SocketChannel destiny = null;
     boolean flag = true;
     Iterator it = users.entrySet().iterator();
@@ -311,9 +408,11 @@ public class Server
     }
     message = "PRIV " + users.get(sc) + " " + message;
     send(destiny, message);
+    */
   }
 
   static private void message(SocketChannel sc, String message) throws IOException {
+    /*
     if(states.get(sc) != State.inside) { //if user isn't inside a room
       send(sc, "ERROR - you aren't inside a room");
       return;
@@ -322,24 +421,31 @@ public class Server
     Set<SocketChannel> roomSet = rooms.get(room);
     String alfa = "MESSAGE " + users.get(sc) + " " + message;
     sendSet(roomSet, alfa);
+    */
   }
 
-  static private void send(SocketChannel sc, String message) throws IOException {
+  static private void send(SelectionKey key, String message) throws IOException {
+    message = message + "\n";
+    SocketChannel sc = (SocketChannel) key.channel();
     sc.write(encoder.encode(CharBuffer.wrap(message)));
   }
 
   static private void sendSet(Set<SocketChannel> sclist, String message) throws IOException {
+    /*
     for(SocketChannel sc : sclist){
       send(sc, message);
     }
+    */
   }
 
   static private void sendSetOthers(Set<SocketChannel> sclist, SocketChannel exception, String message) throws IOException {
+    /*
     for(SocketChannel sc : sclist){
       if(sc != exception){
         send(sc, message);
       }
     }
+    */
   }
 
 }
