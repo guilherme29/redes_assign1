@@ -359,17 +359,19 @@ public class Server
     send(key, "BYE");
     users.remove(key);
     SocketChannel sc = (SocketChannel) key.channel();
+    Socket s = null;
     try {
-      sc.close();
+      s = sc.socket();
+      System.out.println( "Closing connection to "+s );
+      s.close();
     } catch(IOException e){
-      System.err.println(e);
+      System.err.println( "Error closing socket "+s+": "+e );
     }
-
-    System.out.println("Closed " + sc);
   }
 
   static private void removeUser(SelectionKey key) throws IOException{
     //this function is to be used when the connection is lost
+    //to remove the user from the "database" and inform other users
     User user = (User) key.attachment();
     if(user.getState() == State.inside){
       Room room = user.getRoom();
