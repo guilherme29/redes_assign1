@@ -250,21 +250,20 @@ public class Server
     else if(message.startsWith("/bye")){
       bye(key);
     }
-    else if(message.startsWith("/priv")){
-      /*
-      String aux = message.substring(6);
-      String user = "";
-      int i;
-      for(i=0; aux.charAt(i)!=' '; i++){
-        user = user + aux.charAt(i);
+    else if(message.startsWith("/priv ")){
+      try{
+        String aux = message.substring(6);
+        String user = "";
+        int i;
+        for(i=0; aux.charAt(i)!=' '; i++){
+          user = user + aux.charAt(i);
+        }
+        message = aux.substring(i + 1);
+        message = message.replace("\n","");
+        priv(key, user, message);
+      } catch(StringIndexOutOfBoundsException e){
+        send(key, "ERROR - please use the command like: /priv user message");
       }
-      user = user + "\n";  ////////////TODO arranjar usernames (estao a acabar com \n e nao deviam)
-      message = message.substring(i + 1);
-      priv(sc, user, message);
-      System.out.println("->" + user);
-      System.out.println("->" + message);
-      System.out.println("->" + users.get(sc));
-      */
     }
     else {
       message = message.replace("\n","");
@@ -386,26 +385,20 @@ public class Server
     users.remove(key);
   }
 
-  static private void priv(SocketChannel sc, String user, String message) throws IOException{
-    /*
-    SocketChannel destiny = null;
-    boolean flag = true;
-    Iterator it = users.entrySet().iterator();
-    while(it.hasNext()){
-      Map.Entry pair = (Map.Entry) it.next();
-      if(users.get(pair.getKey()).compareTo(user) == 0){
-        destiny = (SocketChannel) pair.getKey();
-        flag = false;
-        break;
+  static private void priv(SelectionKey key, String user, String message) throws IOException{
+    for(SelectionKey auxKey : users){
+      User recipientUser = (User) auxKey.attachment();
+
+      if(recipientUser.getNickname().compareTo(user) == 0){
+
+        User senderUser = (User) key.attachment();
+        send(auxKey , "PRIVATE " + senderUser.getNickname() + ": " + message);
+        send(key    , "PRIVATE " + senderUser.getNickname() + ": " + message);
+        return;
+
       }
     }
-    if(flag){
-      send(sc, "ERROR - user not found");
-      return;
-    }
-    message = "PRIV " + users.get(sc) + " " + message;
-    send(destiny, message);
-    */
+    send(key, "ERROR - user not found");
   }
 
   static private void message(SelectionKey key, String message) throws IOException {
