@@ -11,7 +11,7 @@ enum State {
 }
 class User{
   String nickname = "";
-  State state;
+  State state = State.init;
   Room room;
   String message = ""; //i need this to avoid responding to Ctrl + D on netcat
 
@@ -77,18 +77,6 @@ public class Server
   static private HashSet<SelectionKey> users = new HashSet<>();
 
   static private Selector selector;
-  /*
-  //users list
-  static private HashMap<SocketChannel, String> users = new HashMap<>();
-  //users states
-  static private HashMap<SocketChannel, State> states = new HashMap<>();
-  //rooms and users inside them
-  static private HashMap<String,Set<SocketChannel>> rooms = new HashMap<>();
-  //user and the room he is currently in (using this to simplify)
-  static private HashMap<SocketChannel, String> userRoom = new HashMap<>();
-
-  static private HashMap<SocketChannel, String> userMessage = new HashMap<>();
-  */
 
   static public void main( String args[] ) throws Exception {
     // Parse port from command line
@@ -158,8 +146,10 @@ public class Server
             try {
 
               // Registering a new user
-              key.attach(new User());
-              users.add(key);
+              if(key.attachment() == null){
+                key.attach(new User());
+                users.add(key);
+              }
 
               // It's incoming data on a connection -- process it
               boolean ok = processInput( key );
@@ -237,7 +227,6 @@ public class Server
       //message.trim();
     }
     */
-
     if(message.startsWith("/nick ")){
       String nick = message.substring(6);//6 = "/nick ".length()
       nick = nick.replace("\n", "");
@@ -297,42 +286,19 @@ public class Server
     }
 
     //checking if the user is in a room
-    State state = user.getState();
-    if(state == State.init || state == State.outside){
-      user.setNickname(nick);
-      key.attach(user);                                 //  TODO check if this line is needed
-      send(key, "OK - your nickname is now: " + nick);
-    }
-    else {
+    if(user.getState() == State.inside){
       String oldnick = user.getNickname();
       String message = "NEWNICK " + oldnick + " " + nick;
       Room room = user.getRoom();
       //sendToOthers()                                      TODO
       //send()                                              TODO
     }
-
-    /*
-    if(users.containsValue(nick)){
-      send(sc, "ERROR - nickname already in use");
+    else {
+      user.setState(State.outside);
     }
-    else{
-      //informing the rest of the room about the change
-      String oldnick = users.get(sc);
-      if(states.get(sc) == State.inside){ //if the user is in a room
-        String room = userRoom.get(sc);
-        Set<SocketChannel> roomSet = rooms.get(room);
-        String message = "NEWNICK " + oldnick + " " + nick;
-        sendSetOthers(roomSet, sc, message);
-      }
-
-      //changing the nick
-      users.put(sc, nick);
-      send(sc, "OK - your nickname is now: " + nick);
-      states.put(sc, State.outside);
-      //System.out.println("New nick added: " + nick);
-
-    }
-    */
+    user.setNickname(nick);
+    key.attach(user);
+    send(key, "OK - your nickname is now: " + nick);
   }
 
   static private void join(SelectionKey key, String room) throws IOException{
