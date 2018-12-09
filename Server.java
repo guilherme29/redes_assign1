@@ -164,6 +164,7 @@ public class Server
               // If the connection is dead, remove it from the selector
               // and close it
               if (!ok) {
+                removeUser(key);
                 key.cancel();
 
                 Socket s = null;
@@ -247,9 +248,7 @@ public class Server
       leave(key);
     }
     else if(message.startsWith("/bye")){
-      /*
-      bye(sc);
-      */
+      bye(key);
     }
     else if(message.startsWith("/priv")){
       /*
@@ -353,24 +352,38 @@ public class Server
     }
   }
 
-  static private void bye(SocketChannel sc) throws IOException {
-    /*
-    if(states.get(sc) == State.inside){ //leaves the room
-      leave(sc);
+  static private void bye(SelectionKey key) throws IOException {
+    User user = (User) key.attachment();
+    if(user.getState() == State.inside){
+      leave(key);
     }
-    send(sc, "BYE");
-
-    users.remove(sc);
-    states.remove(sc);
-
+    send(key, "BYE");
+    users.remove(key);
+    SocketChannel sc = (SocketChannel) key.channel();
     try {
       sc.close();
-    } catch(IOException e) {
+    } catch(IOException e){
       System.err.println(e);
     }
 
-    System.out.println( "Closed " + sc );
-    */
+    System.out.println("Closed " + sc);
+  }
+
+  static private void removeUser(SelectionKey key) throws IOException{
+    //this function is to be used when the connection is lost
+    User user = (User) key.attachment();
+    if(user.getState() == State.inside){
+      Room room = user.getRoom();
+      room.removeUser(key);
+      //deleting the room if it becomes empty
+      if(room.isEmpty()){
+        rooms.remove(room);
+      }
+      else{
+        sendToRoom(room, "LEFT " + user.getNickname());
+      }
+    }
+    users.remove(key);
   }
 
   static private void priv(SocketChannel sc, String user, String message) throws IOException{
