@@ -291,9 +291,9 @@ public class Server
     //checking if the user is in a room
     if(user.getState() == State.inside){
       String oldnick = user.getNickname();
-      String message = "NEWNICK " + oldnick + " " + nick;
+      String message = "NEWNICK " + oldnick + " is now called " + nick;
       Room room = user.getRoom();
-      //sendToOthers()                                      TODO
+      sendToOthersInRoom(room, key, message);
     }
     else {
       user.setState(State.outside);
