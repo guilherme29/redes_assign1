@@ -10,7 +10,7 @@ enum State {
   init, outside, inside
 }
 class User{
-  String username = "";
+  String nickname = "";
   State state;
   Room room;
   String message = ""; //i need this to avoid responding to Ctrl + D on netcat
@@ -19,8 +19,8 @@ class User{
     this.state = State.init;
   }
 
-  String getUsername(){
-    return this.username;
+  String getNickname(){
+    return this.nickname;
   }
   State getState(){
     return this.state;
@@ -29,8 +29,8 @@ class User{
     return this.room;
   }
 
-  void setUsername(String username){
-    this.username = username;
+  void setNickname(String nickname){
+    this.nickname = nickname;
   }
   void setState(State state){
     this.state = state;
@@ -39,11 +39,28 @@ class User{
     this.room = room;
   }
 
+  boolean isInRoom(){
+    return this.getRoom() != null ? true : false;
+  }
+
 }
 
 class Room{
   String name = "";
-  HashSet<User> users = new HashSet<>();
+  HashSet<SelectionKey> users = new HashSet<>();
+
+  Room(String name){
+    this.name = name;
+  }
+  HashSet<SelectionKey> getUsers(){
+    return users;
+  }
+  String getName(){
+    return name;
+  }
+  void addUser(SelectionKey key){
+    users.add(key);
+  }
 }
 
 public class Server
@@ -227,10 +244,9 @@ public class Server
       nick(key, nick);
     }
     else if(message.startsWith("/join ")){
-      /*
       String room = message.substring(6);//6 = "/join ".length()
-      join(sc, room);
-      */
+      room = room.replace("\n","");
+      join(key, room);
     }
     else if(message.startsWith("/leave")){
       /*
@@ -274,7 +290,7 @@ public class Server
     //checking for users with the same nickname
     for(SelectionKey aux : users){
       User auxUser = (User) aux.attachment();
-      if(auxUser.getUsername().compareTo(nick) == 0){
+      if(auxUser.getNickname().compareTo(nick) == 0){
         send(key, "ERROR - nickname already in use");
         return;
       }
@@ -283,12 +299,12 @@ public class Server
     //checking if the user is in a room
     State state = user.getState();
     if(state == State.init || state == State.outside){
-      user.setUsername(nick);
+      user.setNickname(nick);
       key.attach(user);                                 //  TODO check if this line is needed
       send(key, "OK - your nickname is now: " + nick);
     }
     else {
-      String oldnick = user.getUsername();
+      String oldnick = user.getNickname();
       String message = "NEWNICK " + oldnick + " " + nick;
       Room room = user.getRoom();
       //sendToOthers()                                      TODO
@@ -319,7 +335,36 @@ public class Server
     */
   }
 
-  static private void join(SocketChannel sc, String room) throws IOException{
+  static private void join(SelectionKey key, String room) throws IOException{
+    User user = (User) key.attachment();
+    if(user.getState() == State.init){
+      send(key, "ERROR - no nickname defined");
+      return;
+    }
+    Room roomy = null;
+    for(Room aux : rooms){
+      if(aux.getName().compareTo(room) == 0){
+        roomy = aux;
+        break;
+      }
+    }
+    if(user.isInRoom()){
+      //                                                    TODO leave
+    }
+    if(roomy != null){ //room already exists
+      user.setRoom(roomy);
+      roomy.addUser(key);
+                                                    //  TODO ver se preciso de voltar a dar attach ao user
+    }
+    else { //room doesn't exist
+      roomy = new Room(room);
+      roomy.addUser(key);
+      rooms.add(roomy);
+      send(key, "OK - you're now in " + room);
+    }
+    sendToOthersInRoom(roomy, key, "JOINED " + user.getNickname());
+    user.setState(State.inside);
+
     /*
     State userState = states.get(sc);
     if(userState == State.init){
@@ -430,22 +475,19 @@ public class Server
     sc.write(encoder.encode(CharBuffer.wrap(message)));
   }
 
-  static private void sendSet(Set<SocketChannel> sclist, String message) throws IOException {
-    /*
-    for(SocketChannel sc : sclist){
-      send(sc, message);
+  static private void sendRoom(Room room, String message) throws IOException {
+    for(SelectionKey user : room.getUsers()){
+        send(user, message);
     }
-    */
   }
 
-  static private void sendSetOthers(Set<SocketChannel> sclist, SocketChannel exception, String message) throws IOException {
-    /*
-    for(SocketChannel sc : sclist){
-      if(sc != exception){
-        send(sc, message);
+  static private void sendToOthersInRoom(Room room, SelectionKey exception, String message) throws IOException {
+    for(SelectionKey user : room.getUsers()){
+      if(user == exception){
+        continue;
       }
+      send(user, message);
     }
-    */
   }
 
 }
