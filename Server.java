@@ -264,9 +264,8 @@ public class Server
       */
     }
     else {
-      /*
-      message(sc, message);
-      */
+      message = message.replace("\n","");
+      message(key, message);
     }
 
     return true;
@@ -291,13 +290,12 @@ public class Server
       String message = "NEWNICK " + oldnick + " " + nick;
       Room room = user.getRoom();
       //sendToOthers()                                      TODO
-      //send()                                              TODO
     }
     else {
       user.setState(State.outside);
     }
     user.setNickname(nick);
-    key.attach(user);
+    //key.attach(user);
     send(key, "OK - your nickname is now: " + nick);
   }
 
@@ -320,10 +318,10 @@ public class Server
     if(roomy != null){ //room already exists
       user.setRoom(roomy);
       roomy.addUser(key);
-                                                    //  TODO ver se preciso de voltar a dar attach ao user
     }
     else { //room doesn't exist
       roomy = new Room(room);
+      user.setRoom(roomy);
       roomy.addUser(key);
       rooms.add(roomy);
       send(key, "OK - you're now in " + room);
@@ -331,31 +329,6 @@ public class Server
     sendToOthersInRoom(roomy, key, "JOINED " + user.getNickname());
     user.setState(State.inside);
 
-    /*
-    State userState = states.get(sc);
-    if(userState == State.init){
-      send(sc, "ERROR - no nickname defined");
-      return;
-    }
-    if(!rooms.containsKey(room)){ //if the room doesn't exist yet
-      Set<SocketChannel> set = new HashSet<SocketChannel>();
-      rooms.put(room, set);
-    }
-
-    //removing user from current room
-    leave(sc);
-
-    //adding user to other room
-    Set<SocketChannel> usersInRoom = rooms.get(room);
-    usersInRoom.add(sc);
-    send(sc, "OK - you're now in " + room);
-    userRoom.put(sc, room); //adding the user to the room
-    states.put(sc, State.inside); //changing the state
-    rooms.put(room, usersInRoom); //adding this room to the list of rooms
-
-    String welcomeMessage = "JOINED " + users.get(sc);
-    sendSetOthers(usersInRoom, sc, welcomeMessage);
-    */
   }
 
   static private void leave(SocketChannel sc) throws IOException {
@@ -422,17 +395,14 @@ public class Server
     */
   }
 
-  static private void message(SocketChannel sc, String message) throws IOException {
-    /*
-    if(states.get(sc) != State.inside) { //if user isn't inside a room
-      send(sc, "ERROR - you aren't inside a room");
+  static private void message(SelectionKey key, String message) throws IOException {
+    User user = (User) key.attachment();
+    if(user.getState() != State.inside){
+      send(key, "ERROR - you aren't inside a room");
       return;
     }
-    String room = userRoom.get(sc);
-    Set<SocketChannel> roomSet = rooms.get(room);
-    String alfa = "MESSAGE " + users.get(sc) + " " + message;
-    sendSet(roomSet, alfa);
-    */
+    message = "MESSAGE " + user.getNickname() + ": " + message;
+    sendRoom(user.getRoom(), message);
   }
 
   static private void send(SelectionKey key, String message) throws IOException {
