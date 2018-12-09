@@ -61,6 +61,12 @@ class Room{
   void addUser(SelectionKey key){
     users.add(key);
   }
+  void removeUser(SelectionKey key){
+    users.remove(key);
+  }
+  boolean isEmpty(){
+    return users.isEmpty();
+  }
 }
 
 public class Server
@@ -238,9 +244,7 @@ public class Server
       join(key, room);
     }
     else if(message.startsWith("/leave")){
-      /*
-      leave(sc);
-      */
+      leave(key);
     }
     else if(message.startsWith("/bye")){
       /*
@@ -313,7 +317,7 @@ public class Server
       }
     }
     if(user.isInRoom()){
-      //                                                    TODO leave
+      leave(key);
     }
     if(roomy != null){ //room already exists
       user.setRoom(roomy);
@@ -331,26 +335,22 @@ public class Server
 
   }
 
-  static private void leave(SocketChannel sc) throws IOException {
-    /*
-    if(states.get(sc) == State.outside){ //in case it's not in a room
+  static private void leave(SelectionKey key) throws IOException {
+    User user = (User) key.attachment();
+    if(user.getState() != State.inside){
       return;
     }
-
-    String room = userRoom.get(sc);
-    Set<SocketChannel> set = rooms.get(room);
-    set.remove(sc);
-    userRoom.remove(sc);
-
-    if(set.size() == 0){ //if the room becomes empty, deletes it
+    Room room = user.getRoom();
+    room.removeUser(key);
+    user.setRoom(null);
+    user.setState(State.outside);
+    //deleting the room if it becomes empty
+    if(room.isEmpty()){
       rooms.remove(room);
     }
-    else {
-      String goodbyeMessage = "LEFT " + users.get(sc);
-      sendSet(set, goodbyeMessage);
+    else{
+      sendToRoom(room, "LEFT " + user.getNickname());
     }
-    states.put(sc, State.outside);
-    */
   }
 
   static private void bye(SocketChannel sc) throws IOException {
@@ -402,7 +402,7 @@ public class Server
       return;
     }
     message = "MESSAGE " + user.getNickname() + ": " + message;
-    sendRoom(user.getRoom(), message);
+    sendToRoom(user.getRoom(), message);
   }
 
   static private void send(SelectionKey key, String message) throws IOException {
@@ -411,7 +411,7 @@ public class Server
     sc.write(encoder.encode(CharBuffer.wrap(message)));
   }
 
-  static private void sendRoom(Room room, String message) throws IOException {
+  static private void sendToRoom(Room room, String message) throws IOException {
     for(SelectionKey user : room.getUsers()){
         send(user, message);
     }
