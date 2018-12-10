@@ -265,6 +265,9 @@ public class Server
         send(key, "ERROR - please use the command like: /priv user message");
       }
     }
+    else if(message.startsWith("/help")){
+      help(key);
+    }
     else {
       message = message.replace("\n","");
       message(key, message);
@@ -401,6 +404,16 @@ public class Server
       }
     }
     send(key, "ERROR - user not found");
+  }
+
+  static private void help(SelectionKey key) throws IOException{
+    SocketChannel sc = (SocketChannel) key.channel();
+    String message =    "/nick nickname      - to add a nickname\n";
+    message = message + "/join room          - to join a room\n";
+    message = message + "/leave              - to leave the room\n";
+    message = message + "/priv user message  - to send a private message\n";
+    message = message + "/bye                - to disconnect from the server";
+    send(key, message);
   }
 
   static private void message(SelectionKey key, String message) throws IOException {
