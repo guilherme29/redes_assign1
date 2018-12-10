@@ -10,10 +10,10 @@ enum State {
   init, outside, inside
 }
 class User{
-  String nickname = "";
-  State state = State.init;
-  Room room;
-  String message = ""; //i need this to avoid responding to Ctrl + D on netcat
+  private String nickname = "";
+  private State state = State.init;
+  private Room room;
+  private String message = ""; //i need this to avoid responding to Ctrl + D on netcat
 
   User(){
     this.state = State.init;
@@ -28,6 +28,9 @@ class User{
   Room getRoom(){
     return this.room;
   }
+  String getMessage(){
+    return message;
+  }
 
   void setNickname(String nickname){
     this.nickname = nickname;
@@ -38,6 +41,12 @@ class User{
   void setRoom(Room room){
     this.room = room;
   }
+  void cleanMessage(){
+    this.message = "";
+  }
+  void addMessage(String message){
+    this.message = this.message + message;
+  }
 
   boolean isInRoom(){
     return this.getRoom() != null ? true : false;
@@ -46,8 +55,8 @@ class User{
 }
 
 class Room{
-  String name = "";
-  HashSet<SelectionKey> users = new HashSet<>();
+  private String name = "";
+  private HashSet<SelectionKey> users = new HashSet<>();
 
   Room(String name){
     this.name = name;
@@ -214,26 +223,18 @@ public class Server
     if (buffer.limit()==0) {
       return false;
     }
-    /*
-    if(!userMessage.containsKey(sc)){
-      userMessage.put(sc,"");
-    }
-    */
 
     String message = decoder.decode(buffer).toString();
     System.out.println("RECEIVED MESSAGE: " + message);
-    /*
-    if(!message.endsWith("\n")){ //to avoid sending messages with Ctrl + D on netcat
-      String restOfMessage = userMessage.get(sc);
-      restOfMessage = restOfMessage + message;
+
+    //checking if it's a \n or a Ctrl+D
+    User auxUser = (User) key.attachment();
+    message = auxUser.getMessage() + message;
+    if(!message.endsWith("\n")){
+      auxUser.addMessage(message);
       return true;
     }
-    else{
-      String restOfMessage = userMessage.get(sc);
-      message = restOfMessage + message;
-      //message.trim();
-    }
-    */
+
     if(message.startsWith("/nick ")){
       String nick = message.substring(6);//6 = "/nick ".length()
       nick = nick.replace("\n", "");
@@ -262,7 +263,7 @@ public class Server
         message = message.replace("\n","");
         priv(key, user, message);
       } catch(StringIndexOutOfBoundsException e){
-        send(key, "ERROR - please use the command like: /priv user message");
+        send(key, "ERROR");
       }
     }
     else if(message.startsWith("/help")){
@@ -273,6 +274,8 @@ public class Server
       message(key, message);
     }
 
+    System.out.println("---->" + auxUser.getMessage());
+    auxUser.cleanMessage();
     return true;
   }
 
@@ -447,7 +450,7 @@ public class Server
   static private void message(SelectionKey key, String message) throws IOException {
     User user = (User) key.attachment();
     if(user.getState() != State.inside){
-      send(key, "ERROR - you aren't inside a room");
+      send(key, "ERROR");
       return;
     }
     if(message.charAt(0) == '/'){
