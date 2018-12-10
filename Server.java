@@ -284,7 +284,7 @@ public class Server
     for(SelectionKey aux : users){
       User auxUser = (User) aux.attachment();
       if(auxUser.getNickname().compareTo(nick) == 0){
-        send(key, "ERROR - nickname already in use");
+        send(key, "ERROR");
         return;
       }
     }
@@ -292,7 +292,7 @@ public class Server
     //checking if the user is in a room
     if(user.getState() == State.inside){
       String oldnick = user.getNickname();
-      String message = "NEWNICK " + oldnick + " is now called " + nick;
+      String message = "NEWNICK " + oldnick + " " + nick;
       Room room = user.getRoom();
       sendToOthersInRoom(room, key, message);
     }
@@ -301,14 +301,22 @@ public class Server
     }
     user.setNickname(nick);
     //key.attach(user);
-    send(key, "OK - your nickname is now: " + nick);
+    send(key, "OK");
   }
 
   static private void join(SelectionKey key, String room) throws IOException{
     User user = (User) key.attachment();
     if(user.getState() == State.init){
-      send(key, "ERROR - no nickname defined");
+      send(key, "ERROR");
       return;
+    }
+    Room auxRoom = user.getRoom();
+    if(auxRoom != null){
+      if(auxRoom.getName().compareTo(room) == 0){
+        //if the user is already in the room itself
+        send(key, "ERROR");
+        return;
+      }
     }
     Room roomy = null;
     for(Room aux : rooms){
@@ -329,14 +337,34 @@ public class Server
       user.setRoom(roomy);
       roomy.addUser(key);
       rooms.add(roomy);
-      send(key, "OK - you're now in " + room);
     }
+    send(key, "OK");
     sendToOthersInRoom(roomy, key, "JOINED " + user.getNickname());
     user.setState(State.inside);
 
   }
 
   static private void leave(SelectionKey key) throws IOException {
+    User user = (User) key.attachment();
+    if(user.getState() != State.inside){
+      send(key, "ERROR");
+      return;
+    }
+    Room room = user.getRoom();
+    room.removeUser(key);
+    user.setRoom(null);
+    user.setState(State.outside);
+    //deleting the room if it becomes empty
+    if(room.isEmpty()){
+      rooms.remove(room);
+    }
+    else{
+      sendToRoom(room, "LEFT " + user.getNickname());
+    }
+    send(key, "OK");
+  }
+
+  static private void leaveForBye(SelectionKey key) throws IOException {
     User user = (User) key.attachment();
     if(user.getState() != State.inside){
       return;
@@ -357,7 +385,7 @@ public class Server
   static private void bye(SelectionKey key) throws IOException {
     User user = (User) key.attachment();
     if(user.getState() == State.inside){
-      leave(key);
+      leaveForBye (key);
     }
     send(key, "BYE");
     users.remove(key);
@@ -397,13 +425,13 @@ public class Server
       if(recipientUser.getNickname().compareTo(user) == 0){
 
         User senderUser = (User) key.attachment();
-        send(auxKey , "PRIVATE " + senderUser.getNickname() + ": " + message);
-        send(key    , "PRIVATE " + senderUser.getNickname() + ": " + message);
+        send(auxKey , "PRIVATE " + senderUser.getNickname() + " " + message);
+        send(key    , "PRIVATE " + senderUser.getNickname() + " " + message);
         return;
 
       }
     }
-    send(key, "ERROR - user not found");
+    send(key, "ERROR");
   }
 
   static private void help(SelectionKey key) throws IOException{
@@ -422,7 +450,10 @@ public class Server
       send(key, "ERROR - you aren't inside a room");
       return;
     }
-    message = "MESSAGE " + user.getNickname() + ": " + message;
+    if(message.charAt(0) == '/'){
+      message = "/" + message;
+    }
+    message = "MESSAGE " + user.getNickname() + " " + message;
     sendToRoom(user.getRoom(), message);
   }
 
