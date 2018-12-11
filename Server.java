@@ -116,7 +116,7 @@ public class Server
       // Register the ServerSocketChannel, so we can listen for incoming
       // connections
       ssc.register( selector, SelectionKey.OP_ACCEPT );
-      System.out.println( "Listening on port " + port );
+      //System.out.println( "Listening on port " + port );
 
       while (true) {
         // See if we've had any activity -- either an incoming connection,
@@ -142,7 +142,7 @@ public class Server
             // It's an incoming connection.  Register this socket with
             // the Selector so we can listen for input on it
             Socket s = ss.accept();
-            System.out.println( "Got connection from "+s );
+            //System.out.println( "Got connection from "+s );
 
             // Make sure to make it non-blocking, so we can use a selector
             // on it.
@@ -179,10 +179,10 @@ public class Server
                 Socket s = null;
                 try {
                   s = sc.socket();
-                  System.out.println( "Closing connection to "+s );
+                  //System.out.println( "Closing connection to "+s );
                   s.close();
                 } catch( IOException ie ) {
-                  System.err.println( "Error closing socket "+s+": "+ie );
+                  //System.err.println( "Error closing socket "+s+": "+ie );
                 }
               }
 
@@ -194,10 +194,10 @@ public class Server
               try {
                 sc.close();
               } catch( IOException ie2 ) {
-                System.out.println( ie2 );
+                //System.out.println( ie2 );
               }
 
-              System.out.println( "Closed " + sc );
+              //System.out.println( "Closed " + sc );
             }
           }
         }
@@ -206,7 +206,7 @@ public class Server
         keys.clear();
       }
     } catch( IOException ie ) {
-      System.err.println( ie );
+      //System.err.println( ie );
     }
   }
 
@@ -225,7 +225,7 @@ public class Server
     }
 
     String message = decoder.decode(buffer).toString();
-    System.out.println("RECEIVED MESSAGE: " + message);
+    //System.out.println("RECEIVED MESSAGE: " + message);
 
     //checking if it's a \n or a Ctrl+D
     User auxUser = (User) key.attachment();
@@ -274,7 +274,6 @@ public class Server
       message(key, message);
     }
 
-    System.out.println("---->" + auxUser.getMessage());
     auxUser.cleanMessage();
     return true;
   }
@@ -396,10 +395,10 @@ public class Server
     Socket s = null;
     try {
       s = sc.socket();
-      System.out.println( "Closing connection to "+s );
+      //System.out.println( "Closing connection to "+s );
       s.close();
     } catch(IOException e){
-      System.err.println( "Error closing socket "+s+": "+e );
+      //System.err.println( "Error closing socket "+s+": "+e );
     }
   }
 
