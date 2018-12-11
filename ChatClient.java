@@ -18,8 +18,8 @@ public class ChatClient {
 
     // Se for necessario adicionar variaveis ao objecto ChatClient, devem
     // ser colocadas aqui
-    private SocketChannel socketChannel;
-    static private final Charset charset = Charset.forName("UTF8");
+    private Socket clientSocket;
+    static private final Charset charset = Charset.forName("UTF-8");
   	static private final CharsetEncoder encoder = charset.newEncoder();
 
     // Metodo a usar para acrescentar uma string a caixa de texto
@@ -59,16 +59,8 @@ public class ChatClient {
 
         // Se for necessario adicionar codigo de inicializacao ao
         // construtor, deve ser colocado aqui
-        try {
-          writeText("Connecting to " + server + ":" + port + "......");
-          socketChannel = SocketChannel.open();
-          socketChannel.connect(new InetSocketAddress(server, port));
-          if(socketChannel.isConnected()){
-            writeText("Successfully connected!");
-          }
-        } catch(IOException e){
-          writeText(e.getMessage());
-        }
+
+
     }
 
 
@@ -76,26 +68,17 @@ public class ChatClient {
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
         // PREENCHER AQUI com codigo que envia a mensagem ao servidor
-        ByteBuffer buf = encoder.encode(CharBuffer.wrap(message));
-        while(buf.hasRemaining()) {
-          socketChannel.write(buf);
-        }
-
+        DataOutputStream dataToServer = new DataOutputStream(clientSocket.getOutputStream());
+        dataToServer.write((message).getBytes("UTF-8"));
     }
 
 
     // Metodo principal do objecto
     public void run() throws IOException {
         // PREENCHER AQUI
-        chatArea.append("/nick to define a nickname\n");
-        // TODO
-
-        int bytesRead = 0;
-        while(bytesRead >= 0) {
-          ByteBuffer buf = ByteBuffer.allocate(16384); //2^14
-          bytesRead = socketChannel.read(buf);
-          writeText(new String(buf.array()));
-        }
+        //chatArea.append("/nick to define a nickname\n");
+        clientSocket = new Socket(server, port);
+        new Thread(new Listener()).start();
     }
 
 
@@ -105,9 +88,34 @@ public class ChatClient {
         ChatClient client = new ChatClient(args[0], Integer.parseInt(args[1]));
         client.run();
     }
+}
 
-    private void writeText(String text) {
-      chatArea.setText(chatArea.getText() + text + "\n");
+private class Listener implements Runnable {
+  public Listener(){
+
+  }
+
+  public void run(){
+    try{
+      BufferedReader dataFromServer;
+      boolean alive = true;
+
+      while(alive){
+        dataFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+        String message = dataFromServer.readLine() + "\n"; //readLine removes \n
+
+        if(message.compareTo("BYE\n") == 0){
+          alive = false;
+        }
+
+        printMessage(message);
+      }
+      clientSocket.close();
+      System.exit(0); //to close the window
+    } catch(Exception e){
+
     }
+    
+  }
 
 }
