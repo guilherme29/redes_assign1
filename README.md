@@ -5,7 +5,7 @@ A Server and a Chat client to communicate.
 compile it with javac
 run the server with a listening port as argument
 ```Shell
-  java Server 4444
+  java ChatServer 4444
 ```
 run the client with the server IP adress and the listening port
 ```Shell
